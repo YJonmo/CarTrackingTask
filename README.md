@@ -27,7 +27,7 @@ pip install -r requirements.txt  # install
 <details open>
 <summary>Inference</summary>
 
-Bash
+  
 Weights:
   
 yolov5n.pt is the fastest but least accurate
@@ -41,7 +41,7 @@ yolov5l.pt is more accurate than 'm' but slower
 yolov5x.pt is the most accurate model but slowest
   
   
-  
+ Use the following bash command to run the code. You may remove the '--view-img' flag to increase the processing speed.   
   
 ```bash
   

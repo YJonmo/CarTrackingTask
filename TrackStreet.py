@@ -96,6 +96,8 @@ def run(
         print('g')
         warping_matrix = np.loadtxt(warping_matrix_path) # The matrix for warping the view to the google earth view
         image_template = cv2.imread(image_template_path) # Template image for projecting the tracked cars
+        image_template_h = np.shape(image_template)[0]
+        image_template_w = np.shape(image_template)[1]
 
     # Run inference
     model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
@@ -171,7 +173,7 @@ def run(
             # Stream results
             im0 = annotator.result()
             if image_template_path:
-                im0 = resize_img(im0, [np.shape(image_template)[1], np.shape(image_template)[0]])
+                im0 = resize_img(im0, (image_template_w, image_template_h))
                 im0_2 = annotator2.result()
                 im0 = cv2.hconcat([im0, im0_2])
 
@@ -224,7 +226,7 @@ def parse_opt():
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
     parser.add_argument('--max-det', type=int, default=200, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--view-img', action='store_true', help='show results', default=True)
+    parser.add_argument('--view-img', action='store_true', help='show results', default=False)
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3', default=[0, 1, 2, 3, 4, 6, 7])
     parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)')

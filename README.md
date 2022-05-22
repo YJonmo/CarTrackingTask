@@ -1,9 +1,3 @@
-<div align="center">
-    <a href="[https://colab.research.google.com/github/ultralytics/yolov5/blob/master/tutorial.ipynb](https://colab.research.google.com/drive/1a6_CKuhk88YsjBBVS5YiDnZl_Ka4xthQ)">
-        <img src="https://github.com/ultralytics/yolov5/releases/download/v1.0/logo-colab-small.png" width="15%"/>
-    </a>
-</div>
-
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1a6_CKuhk88YsjBBVS5YiDnZl_Ka4xthQ?usp=sharing)
 

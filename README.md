@@ -1,9 +1,6 @@
+Demo availabe on google colab:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1a6_CKuhk88YsjBBVS5YiDnZl_Ka4xthQ?usp=sharing)
-
-
-
-
 
 
 This is a demo for car tracking in a road junction using YOLOv5 (https://docs.ultralytics.com). 

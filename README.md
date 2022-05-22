@@ -1,6 +1,5 @@
 
-
-See the [YOLOv5 Docs](https://docs.ultralytics.com) for full documentation on training, testing and deployment.
+This is a demo for car tracking in a road junction using YOLOv5 (https://docs.ultralytics.com). 
 
 ## <div align="center">Quick Start Examples</div>
 

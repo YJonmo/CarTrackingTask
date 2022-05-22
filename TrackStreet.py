@@ -55,7 +55,7 @@ def run(
         iou_thres=0.45,  # NMS IOU threshold
         max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-        view_img=True,  # show results
+        view_img=False,  # show results
         nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
         line_thickness=3,  # bounding box thickness (pixels)
@@ -163,33 +163,32 @@ def run(
                         annotator.box_label(xyxy, label, color=colors(c, True))
 
                         if image_template_path:
-                            # xyxy[0] = 199
-                            # xyxy[1] = 550
-                            # xyxy[2] = 1000
-                            # xyxy[3] = 228
-                            np.array(xyxy).reshape((2, -1))
-                            xyxy2 = warp_points(np.array(xyxy).reshape((2,-1)), warping_matrix)
+                            xyxy_np = np.array([xyxy[0].cpu(), xyxy[1].cpu(), xyxy[2].cpu(), xyxy[3].cpu()]).reshape((2, -1))
+                            xyxy2 = warp_points(xyxy_np, warping_matrix)
                             xyxy2 = xyxy2.reshape((1,-1)).squeeze()
                             annotator2.box_label(xyxy2, None, color=colors(c, True))
 
             # Stream results
             im0 = annotator.result()
-            im0 = resize_img(im0)
-            im0_2 = annotator2.result()
+            if image_template_path:
+                im0 = resize_img(im0, [np.shape(image_template)[1], np.shape(image_template)[0]])
+                im0_2 = annotator2.result()
+                im0 = cv2.hconcat([im0, im0_2])
+
 
             if view_img:
                 cv2.imshow(str(p), im0)
                 # cv2.imshow('template', projected_image)
-                cv2.imshow('template', im0_2)
+                #cv2.imshow('template', im0_2)
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:
+                save_path = os.path.join(output, ''.join([str(s) for s in Path(path).name.split(deliminator)[0:-1]]) +
+                                         suffix + deliminator + Path(path).name.split(deliminator)[-1])
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
                 else:  # 'video' or 'stream'
-                    save_path = os.path.join(output,''.join([str(s) for s in Path(path).name.split(deliminator)[0:-1]])+
-                                suffix + deliminator + Path(path).name.split(deliminator)[-1])
                     if vid_path[i] != save_path:  # new video
                         vid_path[i] = save_path
                         if isinstance(vid_writer[i], cv2.VideoWriter):
@@ -207,7 +206,7 @@ def run(
                     vid_writer[i].write(im0)
 
         # Print time (inference-only)
-        # LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
+        LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
@@ -216,7 +215,7 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5n.pt', help='model path(s)')
     parser.add_argument('--source', type=str, default=ROOT / 'data/videos', help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--output', type=str, default=ROOT / 'result', help='output directory')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')

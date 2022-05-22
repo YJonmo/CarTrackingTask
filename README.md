@@ -47,22 +47,3 @@ yolov5x.pt is the most accurate model but slowest
   
 python track_cars.py --weights yolov5s.pt --conf 0.25 --source data/videos --output result --view-img
 ```
-Python
-```python
-import torch
-
-# Model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s')  # or yolov5n - yolov5x6, custom
-
-# Images
-img = 'https://ultralytics.com/images/zidane.jpg'  # or file, Path, PIL, OpenCV, numpy, list
-
-# Inference
-results = model(img)
-
-# Results
-results.print()  # or .show(), .save(), .crop(), .pandas(), etc.
-```
-
-[assets]: https://github.com/ultralytics/yolov5/releases
-[tta]: https://github.com/ultralytics/yolov5/issues/303

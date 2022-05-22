@@ -22,9 +22,18 @@ pip install -r requirements.txt  # install
 <summary>Inference</summary>
 
 Bash
+Weights:
+  yolov5n.pt is the fastest but least accurate
+  yolov5s.pt is slower than 'n' but more accurate
+  yolov5m.pt is balance beteen speed and accuracy
+  yolov5l.pt is more accurate than 'm' but slower
+  yolov5x.pt is the most accurate model but slowest
+  
+  
+  
 ```bash
   
-python TrackStreet.py --weights yolov5s.pt --img 640 --conf 0.25 --source data/videos
+python TrackStreet.py --weights yolov5s.pt --conf 0.25 --source data/videos --output result
 ```
 Python
 ```python

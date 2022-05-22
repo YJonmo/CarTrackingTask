@@ -21,11 +21,13 @@ pip install -r requirements.txt  # install
 <details open>
 <summary>Inference</summary>
 
-
+Bash
 ```bash
   
 python TrackStreet.py --weights yolov5s.pt --img 640 --conf 0.25 --source data/videos/  --device cpu
-  
+```
+Python
+```python
 import torch
 
 # Model

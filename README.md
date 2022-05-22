@@ -22,7 +22,7 @@ pip install -r requirements.txt  # install
 <summary>Inference</summary>
 
 
-```python
+```bash
   
 python TrackStreet.py --weights yolov5s.pt --img 640 --conf 0.25 --source data/videos/  --device cpu
   

@@ -2,9 +2,6 @@
     <a href="https://colab.research.google.com/github/ultralytics/yolov5/blob/master/tutorial.ipynb">
         <img src="https://github.com/ultralytics/yolov5/releases/download/v1.0/logo-colab-small.png" width="15%"/>
     </a>
-    <a href="https://www.kaggle.com/ultralytics/yolov5">
-        <img src="https://github.com/ultralytics/yolov5/releases/download/v1.0/logo-kaggle-small.png" width="15%"/>
-    </a>
 </div>
 
 

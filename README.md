@@ -24,7 +24,7 @@ pip install -r requirements.txt  # install
 Bash
 ```bash
   
-python TrackStreet.py --weights yolov5s.pt --img 640 --conf 0.25 --source data/videos/  --device cpu
+python TrackStreet.py --weights yolov5s.pt --img 640 --conf 0.25 --source data/videos
 ```
 Python
 ```python

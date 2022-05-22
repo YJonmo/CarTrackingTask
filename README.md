@@ -23,15 +23,16 @@ pip install -r requirements.txt  # install
 
 Bash
 Weights:
-  yolov5n.pt is the fastest but least accurate
   
-  yolov5s.pt is slower than 'n' but more accurate
+    yolov5n.pt is the fastest but least accurate
   
-  yolov5m.pt is balance beteen speed and accuracy
+    yolov5s.pt is slower than 'n' but more accurate
   
-  yolov5l.pt is more accurate than 'm' but slower
+    yolov5m.pt is balance beteen speed and accuracy
   
-  yolov5x.pt is the most accurate model but slowest
+    yolov5l.pt is more accurate than 'm' but slower
+  
+    yolov5x.pt is the most accurate model but slowest
   
   
   

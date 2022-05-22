@@ -5,7 +5,7 @@
 </div>
 
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)]([https://colab.research.google.com/drive/13wVWBbMGv6unxN-NunVLSbl9ywwTdY8X?usp=sharing](https://colab.research.google.com/drive/1a6_CKuhk88YsjBBVS5YiDnZl_Ka4xthQ))
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1a6_CKuhk88YsjBBVS5YiDnZl_Ka4xthQ?usp=sharing)
 
 
 

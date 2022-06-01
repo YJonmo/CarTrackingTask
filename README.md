@@ -47,5 +47,6 @@ yolov5x.pt is the most accurate model but slowest
   
 ```bash
   
-python track_cars.py --weights yolov5s.pt --conf 0.25 --source data/videos --output result --view-img
+python track_cars.py --yolo-model yolov5s.pt --deep-sort-model osnet_x0_25 --conf-thres 0.2 --source data/videos --output-path result --view-img   
+  
 ```

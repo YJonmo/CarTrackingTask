@@ -310,7 +310,7 @@ def parse_opt():
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3', default=[0, 1, 2, 3, 4, 6, 7])
     parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)')
     parser.add_argument('--suffix', default='_tracked', type=str, help='suffix for the processed frames/videos')
-    parser.add_argument('--deep_sort_model', type=str, default='osnet_x0_25')
+    parser.add_argument('--deep-sort-model', type=str, default='osnet_x0_25')
     parser.add_argument('--config-deepsort', type=str, default='deep_sort/configs/deep_sort.yaml')
 
     opt = parser.parse_args()
@@ -327,3 +327,4 @@ def main(opt):
 if __name__ == "__main__":
     opt = parse_opt()
     main(opt)
+

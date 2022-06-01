@@ -1,22 +1,5 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
-Run inference on images, videos, directories, streams, etc.
-
-Usage - sources:
-    $ python path/to/detect.py --weights yolov5s.pt --source 0              # webcam
-                                                             img.jpg        # image
-                                                             vid.mp4        # video
-                                                             path/          # directory
-                                                             path/*.jpg     # glob
-                                                             'https://youtu.be/Zgi9g1ksQHc'  # YouTube
-                                                             'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream
-
-Usage - formats (pytorch):
-    $ python path/to/detect.py --weights yolov5n.pt                 # fastest
-                                         yolov5s.pt                 # fast
-                                         yolov5m.onnx               # balanced speed and accuracy
-                                         yolov5i.xml                # accurate
-                                         yolov5x.engine             # most accurate'
 """
 
 import argparse

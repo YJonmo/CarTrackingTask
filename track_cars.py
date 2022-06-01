@@ -1,6 +1,5 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
-"""
-"""
+
 
 import argparse
 import os
@@ -17,21 +16,27 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, cv2,
-                           resize_img, warp_points, non_max_suppression, print_args, scale_coords)
-from utils.plots import Annotator, colors
-from utils.torch_utils import select_device, time_sync
+from yolov5.models.experimental import attempt_load
+from yolov5.utils.downloads import attempt_download
+from yolov5.models.common import DetectMultiBackend
+from yolov5.utils.datasets import LoadImages, LoadStreams, VID_FORMATS
+from yolov5.utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
+from yolov5.utils.general import (LOGGER, check_img_size, non_max_suppression, scale_coords, check_requirements, cv2, 
+                                  check_imshow, xyxy2xywh, increment_path, strip_optimizer, colorstr,
+                                  print_args, scale_coords, resize_img, warp_points,)
+from yolov5.utils.torch_utils import select_device, time_sync
+from yolov5.utils.plots import Annotator, colors, save_one_box
+from deep_sort.utils.parser import get_config
+from deep_sort.deep_sort import DeepSort
 
 
 @torch.no_grad()
 def run(
-        image_template_path=ROOT / 'data/template/google_earth.jpg',
-        warping_matrix_path=ROOT / 'data/template/matrix2.txt',
-        weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
-        source=ROOT / 'data/images',  # file/dir/URL/glob, 0 for webcam
-        output=ROOT / 'result',  # output directory
+        image_template_path=ROOT / 'yolov5/data/template/google_earth.jpg',
+        warping_matrix_path=ROOT / 'yolov5/data/template/matrix2.txt',
+        yolo_model=ROOT / 'yolov5s.pt',  # model.pt path(s)
+        source=ROOT / 'yolov5/data/images',  # file/dir/URL/glob, 0 for webcam
+        output_path=ROOT / 'result',  # output directory
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
         imgsz=(640, 640),  # inference size (height, width)
         conf_thres=0.25,  # confidence threshold
@@ -39,10 +44,17 @@ def run(
         max_det=1000,  # maximum detections per image
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         view_img=False,  # show results
+        save_txt=False,  # save results to *.txt
+        save_vid=False,  # save results to video
+        show_vid=False,  # show results to video
+        save_crop=False,  # save cropped prediction boxes
         nosave=False,  # do not save images/videos
         classes=None,  # filter by class: --class 0, or --class 0 2 3
         line_thickness=3,  # bounding box thickness (pixels)
         suffix='_tracked',  # suffix for the name of the processed video/image
+        config_deepsort='deep_sort/configs/deep_sort.yaml',
+        deep_sort_model='osnet_x0_25', # model name for OsNet
+
 ):
     # connect to the sourec
     source = str(source)
@@ -54,28 +66,55 @@ def run(
         source = check_file(source)  # download
 
     # create output folder if no existing
-    output = str(output)
-    if not os.path.exists(output):
-        os.makedirs(output)
+    output_path = str(output_path)
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
     deliminator = '.'
+
+    # Directories
+    if type(yolo_model) is str:  # single yolo model
+        exp_name = yolo_model.split(".")[0]
+    elif type(yolo_model) is list and len(yolo_model) == 1:  # single models after --yolo_model
+        exp_name = yolo_model[0].split(".")[0]
+    else:  # multiple models after --yolo_model
+        exp_name = "ensemble"
+    exp_name = exp_name + "_" + deep_sort_model.split('/')[-1].split('.')[0]
 
     # Load model
     device = select_device(device)
-    model = DetectMultiBackend(weights, device=device, dnn=False, data=data, fp16=False)
+    model = DetectMultiBackend(yolo_model, device=device, dnn=False, data=data, fp16=False)
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
 
     # Dataloader
     if webcam:
-        view_img = check_imshow()
+        show_vid = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt)
-        bs = len(dataset)  # batch_size
+        nr_sources = len(dataset)
     else:
         dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt)
-        bs = 1  # batch_size
-    vid_path, vid_writer = [None] * bs, [None] * bs
+        nr_sources = 1
+    vid_path, vid_writer, txt_path = [None] * nr_sources, [None] * nr_sources, [None] * nr_sources
+
+    # initialize deepsort
+    cfg = get_config()
+    cfg.merge_from_file(opt.config_deepsort)
+
+    # Create as many trackers as there are video sources
+    deepsort_list = []
+    for i in range(nr_sources):
+        deepsort_list.append(
+            DeepSort(
+                deep_sort_model,
+                device,
+                max_dist=cfg.DEEPSORT.MAX_DIST,
+                max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+            )
+        )
+    outputs = [None] * nr_sources
 
     if  image_template_path:
         print('g')
@@ -86,7 +125,7 @@ def run(
 
     # Run inference
     model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
-    dt, seen = [0.0, 0.0, 0.0], 0
+    dt, seen = [0.0, 0.0, 0.0, 0.0], 0
     for path, im, im0s, vid_cap, s in dataset:
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
@@ -108,29 +147,39 @@ def run(
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, False, max_det=max_det)
         dt[2] += time_sync() - t3
 
-        # Process predictions
-        for i, det in enumerate(pred):  # per image
+        # Process detections
+        for i, det in enumerate(pred):  # detections per image
             seen += 1
-            if webcam:  # batch_size >= 1
-                p, im0, frame = path[i], im0s[i].copy(), dataset.count
+            if webcam:  # nr_sources >= 1
+                p, im0, _ = path[i], im0s[i].copy(), dataset.count
+                p = Path(p)  # to Path
                 s += f'{i}: '
+                txt_file_name = p.name
+                save_path = os.path.join(output_path, str(p.parent.name))  # im.jpg, vid.mp4, ...
             else:
-                p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
-
-            p = Path(p)  # to Path
-
-            # save_path = os.path.join(str(p.parent), ''.join([str(s) for s in p.name.split(deliminator)[0:-1]]) +
-            #                          suffix + deliminator + p.name.split(deliminator)[-1])
+                p, im0, _ = path, im0s.copy(), getattr(dataset, 'frame', 0)
+                p = Path(p)  # to Path
+                # video file
+                if source.endswith(VID_FORMATS):
+                    txt_file_name = p.stem
+                    save_path = os.path.join(output_path, str(p.parent.name))  # im.jpg, vid.mp4, ...
+                # folder with imgs
+                else:
+                    txt_file_name = p.parent.name  # get folder name containing current img
+                    save_path = os.path.join(output_path, str(p.parent.name))  # im.jpg, vid.mp4, ...
 
 
 
             #save_path = str(save_dir / p.name)  # im.jpg
+            txt_path = os.path.join(output_path,'tracks', txt_file_name)  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
+            imc = im0.copy() if save_crop else im0  # for save_crop
+
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
             if image_template_path:
-                annotator2 = Annotator(image_template.copy(), line_width=line_thickness, example=str(names), contour='circle')
+                annotator2 = Annotator(image_template.copy(), line_width=1, example=str(names), contour='circle')
 
-            if len(det):
+            if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
@@ -139,21 +188,61 @@ def run(
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
-                # Write results
-                for *xyxy, conf, cls in reversed(det):
-                    if save_img or view_img:  # Add bbox to image
-                        c = int(cls)  # integer class
-                        label = names[c]
+                xywhs = xyxy2xywh(det[:, 0:4])
+                confs = det[:, 4]
+                clss = det[:, 5]
 
-                        # print(np.array(xyxy))
-                        # print(xyxy)
-                        annotator.box_label(xyxy, label, color=colors(c, True))
+                # pass detections to deepsort
+                t4 = time_sync()
+                outputs[i] = deepsort_list[i].update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
+                t5 = time_sync()
+                dt[3] += t5 - t4
+
+                # draw boxes for visualization
+                if len(outputs[i]) > 0:
+                    for j, (output) in enumerate(outputs[i]):
+
+                        bboxes = output[0:4]
+                        id = output[4]
+                        cls = output[5]
+                        conf = output[6]
+
+                        if save_txt:
+                            # to MOT format
+                            bbox_left = output[0]
+                            bbox_top = output[1]
+                            bbox_w = output[2] - output[0]
+                            bbox_h = output[3] - output[1]
+                            # Write MOT compliant results to file
+                            with open(txt_path + '.txt', 'a') as f:
+                                f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,  # MOT format
+                                                               bbox_top, bbox_w, bbox_h, -1, -1, -1, i))
+
+                        #if save_vid or save_crop or show_vid:  # Add bbox to image
+                        if 1:  # Add bbox to image
+                            c = int(cls)  # integer class
+                            label = f'{id:0.0f} {names[c]} {conf:.2f}'
+                            annotator.box_label(bboxes, label, color=colors(c, True))
 
                         if image_template_path:
-                            xyxy_np = np.array([xyxy[0].cpu(), xyxy[1].cpu(), xyxy[2].cpu(), xyxy[3].cpu()]).reshape((2, -1))
+                            # xyxy_np = np.array(
+                            #     [bboxes[0].cpu(), bboxes[1].cpu(), bboxes[2].cpu(), bboxes[3].cpu()]).reshape((2, -1))
+                            xyxy_np = np.array(
+                                [bboxes[0], bboxes[1], bboxes[2], bboxes[3]]).reshape((2, -1))
                             xyxy2 = warp_points(xyxy_np, warping_matrix)
-                            xyxy2 = xyxy2.reshape((1,-1)).squeeze()
-                            annotator2.box_label(xyxy2, None, color=colors(c, True))
+                            xyxy2 = xyxy2.reshape((1, -1)).squeeze()
+                            label = f'{id:0.0f} {names[c]}'
+                            annotator2.box_label(xyxy2, label, color=colors(c, True))
+
+                            if save_crop:
+                                txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
+                                save_one_box(bboxes, imc, file=output_path / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
+
+                LOGGER.info(f'{s}Done. YOLO:({t3 - t2:.3f}s), DeepSort:({t5 - t4:.3f}s)')
+
+            else:
+                deepsort_list[i].increment_ages()
+                LOGGER.info('No detections')
 
             # Stream results
             im0 = annotator.result()
@@ -165,13 +254,14 @@ def run(
 
             if view_img:
                 cv2.imshow(str(p), im0)
+                cv2.imshow(str(p), im0)
                 # cv2.imshow('template', projected_image)
                 #cv2.imshow('template', im0_2)
                 cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if save_img:
-                save_path = os.path.join(output, ''.join([str(s) for s in Path(path).name.split(deliminator)[0:-1]]) +
+                save_path = os.path.join(output_path, ''.join([str(s) for s in Path(path).name.split(deliminator)[0:-1]]) +
                                          suffix + deliminator + Path(path).name.split(deliminator)[-1])
                 if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
@@ -197,25 +287,31 @@ def run(
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
-    LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
-
+    LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS, %.1fms deep sort update \
+        per image at shape {(1, 3, *imgsz)}' % t)
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5n.pt', help='model path(s)')
-    parser.add_argument('--source', type=str, default=ROOT / 'data/videos', help='file/dir/URL/glob, 0 for webcam')
-    parser.add_argument('--output', type=str, default=ROOT / 'result', help='output directory')
-    parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
+    parser.add_argument('--yolo-model', nargs='+', type=str, default=ROOT / 'yolov5m.pt', help='model path(s)')
+    parser.add_argument('--source', type=str, default=ROOT / 'yolov5/data/videos', help='file/dir/URL/glob, 0 for webcam')
+    parser.add_argument('--output-path', type=str, default=ROOT / 'result', help='output directory')
+    parser.add_argument('--data', type=str, default=ROOT / 'yolov5/data/coco128.yaml', help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
     parser.add_argument('--max-det', type=int, default=200, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='show results', default=False)
+    parser.add_argument('--save-txt', action='store_true', help='save MOT compliant results to *.txt')
+    parser.add_argument('--save-vid', action='store_true', help='save video tracking results')
+    parser.add_argument('--show-vid', action='store_true', help='display tracking video results')
+    parser.add_argument('--save-crop', action='store_true', help='save cropped prediction boxes')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3', default=[0, 1, 2, 3, 4, 6, 7])
     parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)')
     parser.add_argument('--suffix', default='_tracked', type=str, help='suffix for the processed frames/videos')
+    parser.add_argument('--deep_sort_model', type=str, default='osnet_x0_25')
+    parser.add_argument('--config-deepsort', type=str, default='deep_sort/configs/deep_sort.yaml')
 
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
